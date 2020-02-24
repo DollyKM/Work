@@ -1,0 +1,390 @@
+LoginController------------------------------------------
+using CrudDBFirst.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+
+namespace CrudDBFirst.Controllers
+{
+    public class HomeController : Controller
+    {
+        private DataContext db = new DataContext();
+        public ActionResult Login()
+        {
+
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Login(StudentCS studentCS)
+        {
+            
+            
+                var obj = db.student.Where(u => u.Email == studentCS.Email && u.Password == studentCS.Password).FirstOrDefault();
+                using (db)
+                {
+
+                    if (obj != null)
+                    {
+                        Session["Username1"] = obj.FirstName.ToString();
+                        Session["Username2"] = obj.LastName.ToString();
+                    return RedirectToAction("LoggedIn");
+                    }
+                }
+            
+            return View(studentCS);
+        }
+        public ActionResult LoggedIn()
+        {
+            if (Session["Username1"] != null && Session["Username2"] !=null)
+            {
+                return View();
+            }
+            else
+            {
+                return RedirectToAction("Login");
+            }
+        }
+
+    }
+}
+
+------------------------------------UserController---------------------------------------
+
+namespace CrudDBFirst.Controllers
+{
+    
+    public class UsersController : Controller
+    {
+        private DataContext db = new DataContext();
+
+        // GET: Users
+        public ActionResult Index()
+        {
+            return View(db.student.ToList());
+        }
+        public ActionResult Register()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public ActionResult Register(StudentCS obj)
+        {
+            
+            if (ModelState.IsValid)
+            {
+                var isEmailAlreadyExists = db.student.Any(x => x.Email == obj.Email);
+                var isMobileAlreadyExists = db.student.Any(x => x.Mobile == obj.Mobile);
+                if (isEmailAlreadyExists || isMobileAlreadyExists)
+                {
+                    if (isEmailAlreadyExists)
+                    {
+                        ModelState.AddModelError("Email", "User with this email already exists");
+                    }
+
+                    else
+                    if (isMobileAlreadyExists)
+                    {
+                        ModelState.AddModelError("Mobile", "User with this mobile number already exists");
+                    }
+                    else
+                    {
+                        ModelState.AddModelError("Email", "User with this email already exists");
+                        ModelState.AddModelError("Mobile", "User with this mobile number already exists");
+                    }
+                    return View(obj);
+                }
+
+
+                StudentCS newobj = new StudentCS();
+                newobj.FirstName = obj.FirstName;
+                newobj.LastName = obj.LastName;
+                newobj.Mobile = obj.Mobile;
+                newobj.Email = obj.Email;
+                newobj.Password = obj.Password;
+   
+                db.student.Add(newobj);
+                db.SaveChanges();
+                db.student.Add(obj);
+                db.SaveChanges();
+                return RedirectToAction("Login","Home");
+            }
+            else
+            {
+                ModelState.AddModelError("", "Error in login!");
+            } 
+            return View();
+        }
+       
+
+
+    }
+}
+--------------------Model DataContext-------------------------------
+namespace CrudDBFirst.Models
+{
+    public class DataContext:DbContext
+    {
+        public DataContext() : base("DbConnectionString") {
+            
+        }
+
+        public DbSet<StudentCS> student { get; set; }
+
+        
+    }
+}
+---------------------Model Student-----------------------------------------
+
+namespace CrudDBFirst.Models
+{
+    public class StudentCS
+    { 
+        public int id { get; set; }
+
+        [Required]
+        [Display(Name ="First Name")]
+        public string FirstName { get; set; }
+
+        [Required]
+        [Display(Name = "Last Name")]
+        public string LastName { get; set; }
+
+        [DataType(DataType.PhoneNumber)]
+        public string Mobile { get; set; }
+
+        [Required]
+        [DataType(DataType.EmailAddress, ErrorMessage = "Invalid Email")]
+        public string Email { get; set; }
+
+        [Required]
+        [Display(Name ="Password")]
+        [DataType(DataType.Password)]
+        public string Password { get; set; }
+
+        [Required]
+        [Display(Name = "ConfirmPassword")]
+        [DataType(DataType.Password)]
+        [Compare("Password")]
+        public string ConfirmPassword { get; set; }
+
+
+    }
+-------------------Index---------------------------------------------
+@model IEnumerable<CrudDBFirst.Models.StudentCS>
+
+@{
+    ViewBag.Title = "Index";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>Index</h2>
+
+<p>
+    @Html.ActionLink("Create New", "Register")
+</p>
+<table class="table">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.FirstName)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.LastName)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Mobile)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Email)
+        </th>
+        
+        <th></th>
+    </tr>
+
+@foreach (var item in Model) {
+    <tr>
+        <td>
+            @Html.DisplayFor(modelItem => item.FirstName)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.LastName)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Mobile)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Email)
+        </td>
+      
+        <td>
+            @Html.ActionLink("Edit", "Edit", new { id=item.id }) |
+            @Html.ActionLink("Details", "Details", new { id=item.id }) |
+            @Html.ActionLink("Delete", "Delete", new { id=item.id })
+        </td>
+    </tr>
+}
+
+</table>
+
+---------------------------LoggedIn---------------------------------
+
+@{
+    ViewBag.Title = "LoggedIn";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>LoggedIn</h2>
+
+<fieldset>
+    <legend>
+        <text>
+            @if(Session["Username"] != null)
+            {
+                <text>
+            welcome! @Session["Username"].ToString()
+            </text>
+            }
+        </text>
+    </legend>
+
+</fieldset>
+-------------------------------Login------------------
+@model CrudDBFirst.Models.StudentCS
+
+@{
+    ViewBag.Title = "Login";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>Login</h2>
+
+
+@using (Html.BeginForm()) 
+{
+    @Html.AntiForgeryToken()
+    
+    <div class="form-horizontal">
+        <h4>Student Login</h4>
+        <hr />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+     
+        <div class="form-group">
+            @Html.LabelFor(model => model.Email, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Email, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Email, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.Password, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Password, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Password, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="col-md-offset-2 col-md-10">
+                <input type="submit" value="Login" class="btn btn-default" />
+            </div>
+        </div>
+    </div>
+}
+
+<div>
+    @Html.ActionLink("Back to List", "Index")
+</div>
+
+@section Scripts {
+    @Scripts.Render("~/bundles/jqueryval")
+}
+
+--------------------------RegisterView---------------------------------------------
+@model CrudDBFirst.Models.StudentCS
+
+@{
+    ViewBag.Title = "Register";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>Register</h2>
+
+
+@using (Html.BeginForm()) 
+{
+    @Html.AntiForgeryToken()
+    
+    <div class="form-horizontal">
+        <h4>StudentCS</h4>
+        <hr />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+        <div class="form-group">
+            @Html.LabelFor(model => model.FirstName, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.FirstName, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.FirstName, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.LastName, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.LastName, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.LastName, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.Mobile, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Mobile, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Mobile, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.Email, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Email, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Email, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.Password, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Password, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Password, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.ConfirmPassword, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.ConfirmPassword, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.ConfirmPassword, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="col-md-offset-2 col-md-10">
+                <input type="submit" value="Create" class="btn btn-default" />
+            </div>
+        </div>
+    </div>
+}
+
+<div>
+    @Html.ActionLink("Already registered?Click to login.", "Login", "Home")
+</div>
+
+@section Scripts {
+    @Scripts.Render("~/bundles/jqueryval")
+}
+----------------------------------------------------------------------------
+
